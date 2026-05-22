@@ -6,7 +6,7 @@ Pontificia Universidad Javeriana
 
 Computación de Alto Desempeño
 
-Este documento resume el proceso de configuración, prueba y validación de un clúster **Hadoop HDFS**, integrado con **Spark** y **Jupyter**, a partir del taller práctico y del notebook `PruebasCluster.ipynb`. Incluye diagramas de arquitectura u procesos, recomendaciones de uso y puntos de análisis para resaltar la funcionalidad del sistema.
+Este documento resume el proceso de configuración, prueba y validación de un clúster **Hadoop HDFS**, integrado con **Spark** y **Jupyter**, a partir del taller práctico y del notebook de implementacion de ejemplos. Incluye diagramas de arquitectura y procesos, recomendaciones de uso y puntos de análisis para resaltar la funcionalidad del sistema.
 
 ---
 
@@ -46,7 +46,7 @@ cad02-w000 ... cad02-w004  → nodos worker (DataNodes)
 
 ## 3. Flujo de configuración
 
-### Diagrama recomendado — Secuencia de instalación
+### Diagrama — Secuencia de instalación
 
 ![Flujo de configuración del clúster](02_flujo_instalacion.png)
 
@@ -101,36 +101,12 @@ La primera celda valida que las tres tecnologías funcionan de forma integrada:
 **Punto de análisis:** los mensajes `File exists` durante la re-ejecución demuestran que los comandos de creación **no son idempotentes por defecto**: fallan si el recurso ya existe. La celda final de limpieza (`rm -r -f`) es la práctica correcta para que un notebook sea reproducible.
 
 ---
-## 6. Recomendaciones de uso
 
-### Buenas prácticas operativas
-
-- **Verificar servicios antes de operar:** ejecutar `jps` en el maestro (debe aparecer `NameNode`) y en los workers (`DataNode`) antes de lanzar comandos.
-- **Usar `-p` al crear estructuras:** evita errores de "directorio no encontrado" en scripts automatizados.
-- **Cargar por lotes con comodines:** `hdfs dfs -put *.txt /destino` es más eficiente que múltiples comandos individuales.
-- **Inspeccionar sin descargar:** `hdfs dfs -cat ... | tail -n 20` permite revisar archivos grandes sin saturar la memoria local.
-- **Notebooks reproducibles:** incluir siempre una celda de limpieza (`rm -r -f`) al final, y usar `mode("overwrite")` en escrituras de Spark.
-
-### Recomendaciones de configuración
-
-- **Factor de replicación:** el valor 2 es adecuado para laboratorio; en producción se recomienda 3 para mayor tolerancia.
-- **Memoria del NameNode:** los 4 GB con ParallelGC son razonables para prácticas; escalar según el número de archivos (cada archivo consume metadatos en RAM).
-- **Permisos desactivados (`dfs.permissions=false`):** útil en laboratorio, pero **no recomendado en producción** por motivos de seguridad.
-- **Nombres de red en `workers`:** mantener `/etc/hosts` sincronizado en todos los nodos.
-
-### Precauciones
-
-- El comando `rm -r -f` es destructivo e **irreversible** si la papelera de HDFS está deshabilitada; verificar la ruta antes de ejecutar.
-- El NameNode es un **punto único de fallo** en esta arquitectura básica; en entornos críticos considerar alta disponibilidad (NameNode secundario o federación).
-- Formatear el NameNode (`hdfs namenode -format`) **borra todos los metadatos**; ejecutar solo en la instalación inicial.
-
----
-
-## 7. Ejemplo sencillo de prueba de rendimiento (benchmark)
+## 5. Ejemplo sencillo de prueba de rendimiento (benchmark)
 
 Además de verificar que el clúster *funciona*, conviene medir **cuán rápido** lo hace. Hadoop incluye herramientas de benchmark ya empaquetadas en su distribución (`hadoop-mapreduce-client-jobclient-*-tests.jar` y `hadoop-mapreduce-examples-*.jar`), por lo que no se requiere instalar nada extra. A continuación se muestra una implementación sencilla.
 
-### 7.1 TestDFSIO — prueba de entrada/salida (I/O)
+### 5.1 TestDFSIO — prueba de entrada/salida (I/O)
 
 `TestDFSIO` mide la velocidad de **lectura y escritura** del sistema de ficheros. Crea archivos grandes en paralelo (un *map* por archivo) y reporta el rendimiento (throughput) sostenido. Es ideal para detectar cuellos de botella de disco o de red.
 
@@ -172,7 +148,7 @@ Average IO rate mb/sec: 16.88
 
 Según un benchmark público sobre un clúster más potente (8 archivos de 32 GB), la prueba de lectura procesó 262.144 MB con un throughput de 399,16 MB/s y una tarea que tomó 659,45 segundos. La comparación entre ambos resultados ilustra cómo el rendimiento escala con el hardware del clúster.
 
-### 7.2 TeraSort — prueba de procesamiento (CPU + I/O + red)
+### 5.2 TeraSort — prueba de procesamiento (CPU + I/O + red)
 
 La suite **TeraSort** mide el tiempo que tarda el clúster en **ordenar un volumen grande de datos**, ejercitando a la vez almacenamiento, CPU y red. Consta de tres pasos:
 
@@ -201,9 +177,7 @@ hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar \
 
 **Como referencia histórica del poder de TeraSort:** en mayo de 2008 este código se ejecutó en un clúster de 910 nodos y ordenó 10 mil millones de registros (1 TB) en 209 segundos, ganando el benchmark anual de ordenamiento de un terabyte. El tiempo transcurrido de TeraSort es la medida del rendimiento de Hadoop; ordenar 1 TB tomó 3,48 minutos en 2008, mientras que ordenar 494,6 TB tomó el mismo tiempo en 2013 con 2100 nodos — una ilustración clara de la escalabilidad horizontal.
 
-> Recuerda borrar los directorios `terasort-input` y `terasort-output` al terminar, ya que ocupan espacio considerable en HDFS.
-
-### 7.3 Tabla comparativa de los benchmarks
+### 5.3 Tabla comparativa de los benchmarks
 
 | Benchmark | Qué mide | Métrica principal | Cuándo usarlo |
 |-----------|----------|-------------------|---------------|
@@ -213,7 +187,7 @@ hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar \
 | **MRBench** | Latencia de trabajos MapReduce pequeños | Tiempo promedio por job | Medir overhead de tareas cortas |
 
 ---
-## 8. Puntos de análisis para resaltar
+## 6. Puntos de análisis para resaltar
 
 1. **Separación metadatos / datos.** El NameNode solo administra metadatos; los datos viajan directo entre cliente y DataNodes. Esto es lo que permite a HDFS escalar horizontalmente.
 
@@ -223,13 +197,13 @@ hadoop jar $HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar \
 
 4. **Idempotencia y reproducibilidad.** Los errores `File exists` al re-ejecutar revelan una lección práctica: los scripts deben gestionar el estado previo (limpiar o usar `overwrite`) para ser confiables en pipelines automatizados.
 
-5. **Abstracción tipo POSIX.** Los comandos HDFS (`-ls`, `-mkdir`, `-cp`, `-rm`, `-cat`) imitan deliberadamente los de Linux, reduciendo la curva de aprendizaje, aunque operan sobre un sistema de archivos distribuido en múltiples máquinas.
+5. **Abstracción tipo POSIX.** Los comandos HDFS (`-ls`, `-mkdir`, `-cp`, `-rm`, `-cat`) imitan los de Linux, reduciendo la curva de aprendizaje, aunque operan sobre un sistema de archivos distribuido en múltiples máquinas.
 
 6. **Verificación de extremo a extremo.** El éxito del taller no se mide por la instalación, sino por el ciclo completo escribir→leer→comparar, que confirma que los datos se guardan y recuperan correctamente desde el clúster.
 
 ---
 
-## 9. Conclusión
+## 7. Conclusión
 
 El proceso documentado cubre íntegramente la puesta en marcha de un clúster Hadoop HDFS funcional: desde la preparación de credenciales y la edición de ficheros de configuración, hasta la validación operativa mediante comandos, la integración con Spark y la medición de rendimiento con benchmarks estándar. Las pruebas confirman que el clúster almacena, replica y recupera datos de forma confiable, cumpliendo los objetivos del taller: **practicar los comandos básicos y comprender la estructura del sistema distribuido.**
 
